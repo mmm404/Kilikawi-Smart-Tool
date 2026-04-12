@@ -1,4 +1,5 @@
 # Kilikawi Smart Farm Tool - ESP32 Dashboard
+<img width="1365" height="734" alt="image" src="https://github.com/user-attachments/assets/dff659e0-e517-4e18-8a78-8449fea9008a" />
 
 A robust, offline ESP32-based dashboard for real-time monitoring of agricultural tools. This system operates as a Wi-Fi Access Point (AP) and serves a web-based interface for tracking Voltage, Current, and Power.
 

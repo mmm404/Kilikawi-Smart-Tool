@@ -47,7 +47,7 @@ WebServer server(80);
 DNSServer dnsServer;
 
 // --- HTML Content ---
-const char INDEX_HTML[] PROGMEM = R"rawliteral(
+const char INDEX_HTML_1[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -84,7 +84,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         .role-selector label { flex: 1; text-align: center; cursor: pointer; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-weight: bold; }
         .role-selector input:checked + label { background: var(--primary); color: white; border-color: var(--primary); }
         .role-selector input { display: none; }
-        #debugLog { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: #0f0; font-family: monospace; font-size: 10px; max-height: 100px; overflow-y: auto; padding: 5px; pointer-events: none; z-index: 10000; display: none; }
     </style>
 </head>
 <body>
@@ -106,15 +105,18 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <div id="adminField" style="display:none">
         <input type="password" id="password" placeholder="Admin Password" value="">
     </div>
-    <button type="button" id="btnEnter" onclick="enterApp()" ontouchstart="enterApp()" style="z-index: 9999; position: relative;">Enter Dashboard</button>
+    <button type="button" id="btnEnter" style="z-index: 9999; position: relative; background-color: #27ae60; color: white; padding: 15px; border-radius: 8px; font-size: 18px; width: 100%; border: none;">Enter Dashboard</button>
+    <div id="fsWarn" style="display:none; color:var(--danger); font-size:12px; margin-top:10px; text-align:center;">
+        Warning: Graph library (chart.min.js) missing from ESP32 storage.
+    </div>
 </div>
-<div id="dashboardPage" class="dashboard-container">
+<div id="dashboardPage" class="dashboard-container" style="display:none">
     <div class="header">
         <div class="logo-container">
             <svg class="logo-img" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#2ecc71"/>
                 <path d="M2 17L12 22L22 17" stroke="#2ecc71" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 12L17L22 12" stroke="#2ecc71" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="#2ecc71" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <h3 id="accessoryTitle" style="margin:0">Detecting...</h3>
         </div>
@@ -137,96 +139,114 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     </div>
     <div class="card chart-container"><canvas id="mainChart"></canvas></div>
 </div>
-<div id="debugLog"></div>
 <script>
-    // Confirm script execution immediately
-    document.addEventListener("DOMContentLoaded", function() {
-        var logEl = document.getElementById('debugLog');
-        if (logEl) {
-            logEl.style.display = 'block';
-            logEl.innerHTML += '<div>[SYSTEM] App Ready</div>';
-        }
-    });
+    var HAS_CHART = )rawliteral";
+
+const char INDEX_HTML_2[] PROGMEM = R"rawliteral(;
+    var chart = null;
+    var isLive = true;
+    var enterAppTriggered = false;
+    var dashboardInterval = null;
 
     function log(m) {
-        var logEl = document.getElementById('debugLog');
-        if (logEl) {
-            logEl.style.display = 'block';
-            logEl.innerHTML += '<div>[' + new Date().toLocaleTimeString() + '] ' + m + '</div>';
-            logEl.scrollTop = logEl.scrollHeight;
-        }
         console.log(m);
     }
 
     window.onerror = function(msg, url, line) {
-        log("ERROR: " + msg + " at line " + line);
-        alert("System Error: " + msg + "\nLine: " + line);
+        log("ERROR: " + msg + " line " + line);
         return false;
     };
 
-    var chart = null;
-    var isLive = true;
+    // Run immediately since script is at bottom of body
+    log("System Initialized");
+    if (!HAS_CHART) {
+        var warn = document.getElementById('fsWarn');
+        if (warn) warn.style.display = 'block';
+        log("Warn: chart.min.js missing");
+    }
 
     function toggleAdminField() {
         var field = document.getElementById('adminField');
         var admin = document.getElementById('roleAdmin');
-        if (field && admin) {
-            field.style.display = admin.checked ? 'block' : 'none';
+        if (field && admin) field.style.display = admin.checked ? 'block' : 'none';
+    }
+
+    function enterApp() {
+        log("Enter Triggered");
+        if (enterAppTriggered) { log("Busy"); return; }
+        enterAppTriggered = true;
+        try {
+            var login = document.getElementById('loginPage');
+            var dash = document.getElementById('dashboardPage');
+            if (!login || !dash) { log("DOM missing!"); return; }
+
+            var roleAdmin = document.getElementById('roleAdmin');
+            var isAdmin = roleAdmin && roleAdmin.checked;
+
+            if (isAdmin) {
+                var passEl = document.getElementById('password');
+                if (!passEl || passEl.value !== 'kilikawi') {
+                    alert("Incorrect Admin Password");
+                    return;
+                }
+            }
+
+            login.style.setProperty('display', 'none', 'important');
+            dash.style.setProperty('display', 'block', 'important');
+            var adminTools = document.getElementById('adminTools');
+            if (adminTools) adminTools.style.display = isAdmin ? 'block' : 'none';
+            log("UI Switched");
+            initDashboard();
+
+            if (typeof Chart === 'undefined') {
+                log("Loading Chart.js...");
+                var s = document.createElement('script');
+                s.src = HAS_CHART ? '/chart.min.js' : 'https://cdn.jsdelivr.net/npm/chart.js';
+                s.onload = function() { log("Chart.js Loaded"); reInitChart(); };
+                s.onerror = function() { 
+                    if (HAS_CHART) {
+                        log("Local Chart.js Failed - Trying CDN...");
+                        var s2 = document.createElement('script');
+                        s2.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                        s2.onload = function() { log("CDN Chart.js Loaded"); reInitChart(); };
+                        document.head.appendChild(s2);
+                    } else {
+                        log("Chart.js Load Failed"); 
+                    }
+                };
+                document.head.appendChild(s);
+            }
+        } catch(e) {
+            log("JS Error: " + e.message);
+        } finally {
+            enterAppTriggered = false;
         }
     }
 
-    var enterAppTriggered = false;
-    function enterApp() {
-        if (enterAppTriggered) return; // Prevent double trigger
-        enterAppTriggered = true;
-        
-        log("Button Triggered");
-        try {
-            var roleAdmin = document.getElementById('roleAdmin');
-            var isAdmin = roleAdmin && roleAdmin.checked;
-            
-            if (isAdmin) {
-                var passEl = document.getElementById('password');
-                if (passEl) {
-                    var pass = passEl.value;
-                    if (pass !== 'kilikawi') {
-                        alert("Incorrect Admin Password");
-                        enterAppTriggered = false; // Reset so they can try again
-                        return;
-                    }
-                }
+    function reInitChart() {
+        log("Re-initializing Chart...");
+        var ctx = document.getElementById('mainChart');
+        if (ctx && typeof Chart !== 'undefined') {
+            try {
+                if (chart) chart.destroy();
+                chart = new Chart(ctx.getContext('2d'), {
+                    type: 'line',
+                    data: { labels: [], datasets: [
+                        { label: 'Voltage (V)', data: [], borderColor: '#3498db', yAxisID: 'y' },
+                        { label: 'Current (A)', data: [], borderColor: '#e67e22', yAxisID: 'y1' },
+                        { label: 'Power (W)', data: [], borderColor: '#2ecc71', yAxisID: 'y' },
+                        { label: 'Throttle', data: [], backgroundColor: 'rgba(0,0,0,0.1)', fill: true, stepped: true, yAxisID: 'y2', pointRadius: 0 }
+                    ]},
+                    options: { responsive: true, maintainAspectRatio: false, scales: { 
+                        y: { type: 'linear', position: 'left' }, 
+                        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } },
+                        y2: { display: false, min: 0, max: 2 }
+                    }}
+                });
+                log("Graph Created");
+            } catch(e) {
+                log("Chart.js Error: " + e.message);
             }
-            
-            log("Opening Dashboard...");
-            var login = document.getElementById('loginPage');
-            var dash = document.getElementById('dashboardPage');
-            var adminTools = document.getElementById('adminTools');
-
-            if (login && dash) {
-                login.style.display = 'none';
-                dash.style.display = 'block';
-                if (adminTools) adminTools.style.display = isAdmin ? 'block' : 'none';
-                log("Success");
-                
-                // Initialize Chart.js ONLY after the UI is visible
-                var script = document.createElement('script');
-                script.src = '/chart.min.js';
-                script.onload = function() {
-                    log("Chart.js Loaded");
-                    initDashboard();
-                };
-                script.onerror = function() {
-                    log("Chart.js Failed");
-                    initDashboard(); // Still init dashboard, just no graph
-                };
-                document.head.appendChild(script);
-                
-            } else {
-                log("Error: HTML missing");
-            }
-        } catch(e) {
-            log("Critical: " + e.message);
-            alert("App Error: " + e.message);
         }
     }
 
@@ -249,40 +269,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
 
     function initDashboard() {
+        if (dashboardInterval) return;
         log("Connecting Data...");
-        var ctx = document.getElementById('mainChart');
-        if (!ctx) {
-            log("Error: Canvas missing");
-            return;
-        }
-        
-        if (typeof Chart === 'undefined') {
-            log("Warning: No Chart.js");
-        } else {
-            try {
-                chart = new Chart(ctx.getContext('2d'), {
-                    type: 'line',
-                    data: { labels: [], datasets: [
-                        { label: 'Voltage (V)', data: [], borderColor: '#3498db', yAxisID: 'y' },
-                        { label: 'Current (A)', data: [], borderColor: '#e67e22', yAxisID: 'y1' },
-                        { label: 'Power (W)', data: [], borderColor: '#2ecc71', yAxisID: 'y' },
-                        { label: 'Throttle', data: [], backgroundColor: 'rgba(0,0,0,0.1)', fill: true, stepped: true, yAxisID: 'y2', pointRadius: 0 }
-                    ]},
-                    options: { responsive: true, maintainAspectRatio: false, scales: { 
-                        y: { type: 'linear', position: 'left' }, 
-                        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } },
-                        y2: { display: false, min: 0, max: 2 }
-                    }}
-                });
-                log("Graph Created");
-            } catch(e) {
-                log("Chart.js Error: " + e.message);
-            }
-        }
-        
+        reInitChart();
         fetchProfiles();
-        
-        setInterval(function() {
+        dashboardInterval = setInterval(function() {
             if (isLive) {
                 ajaxGet('/api/live', function(res) {
                     try {
@@ -385,6 +376,20 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             xhr.send();
         }
     }
+
+    // Bind button immediately
+    (function() {
+        var btn = document.getElementById('btnEnter');
+        if (btn) {
+            btn.addEventListener('click', enterApp);
+            btn.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                enterApp();
+            });
+        } else {
+            log("ERROR: btnEnter not found!");
+        }
+    })();
 </script>
 </body>
 </html>
@@ -522,6 +527,10 @@ void saveToFS() {
 
 // --- Setup & Loop ---
 
+bool checkFileExists(const char* path) {
+  return LittleFS.exists(path) || LittleFS.exists(String("/") + path);
+}
+
 void setup() {
   Serial.begin(115200);
   delay(2000); 
@@ -534,13 +543,39 @@ void setup() {
   WiFi.softAPConfig(AP_IP, AP_IP, IPAddress(255, 255, 255, 0));
   WiFi.softAP(AP_SSID, AP_PASS);
   
-  if (!LittleFS.begin(true)) Serial.println("LittleFS Fail");
-  else manageFiles();
+  Serial.print("Initializing LittleFS... ");
+  if (!LittleFS.begin(true)) {
+    Serial.println("FAILED! Attempting emergency format...");
+    if (LittleFS.format()) {
+      Serial.println("Format successful, retrying mount...");
+      if (LittleFS.begin(true)) Serial.println("LittleFS Ready after format.");
+      else Serial.println("LittleFS still failing!");
+    } else {
+      Serial.println("Format failed!");
+    }
+  } else {
+    Serial.println("Mount Successful.");
+  }
+  
+  manageFiles();
+   
+   if (!checkFileExists("chart.min.js")) {
+     Serial.println("WARNING: chart.min.js not found in storage. Graphs will only work if device has internet access (CDN fallback).");
+   } else {
+     Serial.println("Chart.js found in LittleFS.");
+   }
 
-  server.on("/", []() { server.send_P(200, "text/html", INDEX_HTML); });
+  server.on("/", []() {
+    bool hasChart = checkFileExists("chart.min.js");
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", "");
+    server.sendContent_P(INDEX_HTML_1);
+    server.sendContent(hasChart ? "true" : "false");
+    server.sendContent_P(INDEX_HTML_2);
+  });
   server.on("/chart.min.js", []() {
-    if (LittleFS.exists("/chart.min.js")) {
-      File f = LittleFS.open("/chart.min.js", "r");
+    if (checkFileExists("chart.min.js")) {
+      File f = LittleFS.open(LittleFS.exists("/chart.min.js") ? "/chart.min.js" : "chart.min.js", "r");
       server.streamFile(f, "application/javascript");
       f.close();
     } else server.send(404, "text/plain", "Missing Chart.js");

@@ -2,6 +2,7 @@
 <img width="1365" height="734" alt="image" src="https://github.com/user-attachments/assets/dff659e0-e517-4e18-8a78-8449fea9008a" />
 
 A robust, offline ESP32-based dashboard for real-time monitoring of agricultural tools. This system operates as a Wi-Fi Access Point (AP) and serves a web-based interface for tracking Voltage, Current, and Power.
+<img width="1114" height="896" alt="cicrcuit" src="https://github.com/user-attachments/assets/a6d56ed3-1397-42e2-a06b-d0198fff90f9" />
 
 ## Features
 - **Offline Operation**: Operates as a Wi-Fi Access Point (SSID: `Kilikawi-Smart-Tool`).

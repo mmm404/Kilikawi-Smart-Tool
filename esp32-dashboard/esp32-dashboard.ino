@@ -498,7 +498,7 @@ void manageFiles() {
 
   if (!hasAnyProfile) {
     createSampleProfile();
-  }
+  }d
 
   if (count >= 50) {
     File oldest = LittleFS.open(oldestFile, "r");

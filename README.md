@@ -13,7 +13,7 @@ A robust, offline ESP32-based dashboard for real-time monitoring of high-power a
 
 <img width="1114" height="896" alt="Circuit Diagram" src="https://github.com/user-attachments/assets/a6d56ed3-1397-42e2-a06b-d0198fff90f9" />
 
-##  Key Features
+## Key Features
 - **Offline Operation**: Operates as a Wi-Fi Access Point (SSID: `Kilikawi-Smart-Tool`).
 - **Real-time Graphs**: Live monitoring using Chart.js (stored locally via LittleFS).
 - **72V, 3kW BLDC Powertrain**: Specialized for high-power monitoring using the **ACS758LCB-050B** current sensor.
@@ -25,13 +25,13 @@ A robust, offline ESP32-based dashboard for real-time monitoring of high-power a
 
 ---
 
-##  Hardware Pinout Guide
+## Hardware Pinout Guide
 
 ### Powertrain Sensors (72V System)
 | ESP32 Pin | Function | Description |
 |-----------|----------|-------------|
-| **GPIO 34** | Current (VN) | From ACS758 (40mV/A sensitivity, 1.65V offset) |
-| **GPIO 35** | Voltage (VP) | From MCP6022 Voltage Follower |
+| **GPIO 39** | Current (VN) | From ACS758 (40mV/A sensitivity, 1.65V offset) |
+| **GPIO 36** | Voltage (VP) | From MCP6022 Voltage Follower |
 
 ### Accessory Inputs & Indicators
 | ESP32 Pin | Function | Accessory |
@@ -40,10 +40,10 @@ A robust, offline ESP32-based dashboard for real-time monitoring of high-power a
 | **GPIO 12** | Inductive 2 | Tool Detection (Input) |
 | **GPIO 14** | Inductive 3 | Tool Detection (Input) |
 | **GPIO 27** | Inductive 4 | Tool Detection (Input) |
-| **GPIO 35** | LED 1 | Tiller Status (Output) |
-| **GPIO 32** | LED 2 | Sheller Status (Output) |
-| **GPIO 33** | LED 3 | Planter Status (Output) |
-| **GPIO 26** | LED 4 | Mower Status (Output) |
+| **GPIO 25** | LED 1 | Accessory 1 Status (Output) |
+| **GPIO 33** | LED 2 | Accessory 2 Status (Output) |
+| **GPIO 32** | LED 3 | Accessory 3 Status (Output) |
+| **GPIO 26** | LED 4 | Accessory 4 Status (Output) |
 
 ### Throttle Interface
 | ESP32 Pin | Input Switch | Indicator LED | State |
@@ -55,7 +55,7 @@ A robust, offline ESP32-based dashboard for real-time monitoring of high-power a
 ### Battery Level Indicators (LED Bar)
 | ESP32 Pin | Battery Level |
 |-----------|---------------|
-| **GPIO 34** | 20% |
+| **GPIO 19** | 20% |
 | **GPIO 15** | 40% |
 | **GPIO 2**  | 60% |
 | **GPIO 4**  | 80% |
@@ -63,7 +63,7 @@ A robust, offline ESP32-based dashboard for real-time monitoring of high-power a
 
 ---
 
-##  Technical Specifications
+## Technical Specifications
 - **Voltage Range**: 54.0V (Cut-off) to 84.6V (Peak Charge).
 - **Current Sensing**: Bi-directional 50A capability with automatic zero-offset calibration at boot.
 - **Filtering**: 20-sample moving average for stable Power (W) readings.
@@ -71,7 +71,7 @@ A robust, offline ESP32-based dashboard for real-time monitoring of high-power a
 
 ---
 
-##  Software Configuration
+## Software Configuration
 - **Wi-Fi SSID**: `Kilikawi-Smart-Tool`
 - **Wi-Fi Password**: `kilikawi2026`
 - **Access URL**: `http://192.168.4.1`
@@ -89,3 +89,4 @@ The system outputs the following structure via Serial every 1000ms:
   "throttle": 1,
   "battery_percent": 85
 }
+```
